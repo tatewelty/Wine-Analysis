@@ -1,0 +1,98 @@
+---
+title: "Wine Data Analysis"
+author: "Tate Welty"
+date: "Data from UCI Machine learning Repository"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#### Load in Libraries
+```{r}
+library(SuperLearner)  #used for advanced modeling
+library(car)  #allows for Variance Inflation factors
+```
+
+#### Importing Data
+```{r}
+#getwd()  #gets working directory.  Put files in here
+wine_red<-read.csv('winequality-red.csv', sep=";")
+wine_white<-read.csv('winequality-white.csv', sep=";")
+
+#create a combined dataframe
+wine_all<-rbind(wine_red,wine_white)
+wine_all=cbind(c(rep(1,dim(wine_red)[1]),rep(0,dim(wine_white)[1])),wine_all)
+colnames(wine_all)[1]<-'Red Wine'
+wine_all
+```
+
+#### Looking at data
+```{r}
+names(wine_white)
+```
+```{r}
+hist(wine_white$fixed.acidity, freq=F, col='white', border='black')
+hist(wine_red$fixed.acidity, freq=F, col='white', border = 'red', add=T)
+```
+```{r}
+plot(wine_all$fixed.acidity,wine_all$volatile.acidity, col=(wine_all$`Red Wine`+1))
+plot(wine_all$citric.acid,wine_all$residual.sugar, col=(wine_all$`Red Wine`+1))
+plot(wine_all$chlorides,wine_all$free.sulfur.dioxide, col=(wine_all$`Red Wine`+1))
+plot(wine_all$total.sulfur.dioxide,wine_all$density, col=(wine_all$`Red Wine`+1))
+plot(wine_all$pH,wine_all$sulphates, col=(wine_all$`Red Wine`+1))
+plot(wine_all$alcohol,wine_all$quality, col=(wine_all$`Red Wine`+1))
+```
+As we can see above, red wine has less total sulfur dioxide than white wine does.
+
+
+
+#### Variable significance
+```{r}
+model1<-lm(wine_all$`Red Wine`~.,data=wine_all)
+summary(model1)
+```
+For a linear model like the one above, all variables appear to be significant at all confidence levels.  This means we have good predictors.
+```{r}
+vif(model1)
+```
+Density has a VIF above 10, so there is potential collinearity there, but otherwise looks good.
+
+#### Models
+```{r}
+#set testing and training data
+set.seed(123)
+
+train_obs=sample(nrow(wine_all), .75*nrow(wine_all))
+
+x_train=wine_all[train_obs,]
+
+x_test=wine_all[-train_obs,]
+
+y_train=as.numeric(wine_all$`Red Wine`[train_obs])
+
+y_test=as.numeric(wine_all$`Red Wine`[-train_obs])
+```
+
+```{r}
+model_lm1<-lm(wine_all$`Red Wine`~.,data=wine_all)
+pred = predict(model_lm1, x_test, onlySL = TRUE)
+prediction_lm1=ifelse(pred>.5,1,0)
+table(prediction_lm1,y_test)
+```
+Above is a table of linear model.  The left has our prediction, and the top has the actual values.  As we can see we have 8 datapoints that we misinterpret.  This is out of 1625 which is very good.
+```{r}
+#use superlearner to do the same thing
+model_lm = SuperLearner(Y = y_train,
+                                X = x_train, 
+                                family = binomial(),
+                                SL.library = c('SL.lm'))
+```
+```{r}
+pred = predict(model_lm, x_test, onlySL = TRUE)
+pred_binary=ifelse(pred$pred>.5,1,0)
+table(pred_binary,y_test)
+```
+Now we have a linear model, but utilizing SuperLearner.  Superlearner does a lot of additional optimizations with the datasets.  We can see above that there are 0 datapoints misidentified.
