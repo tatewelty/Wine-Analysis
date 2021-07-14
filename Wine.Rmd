@@ -26,7 +26,6 @@ wine_white<-read.csv('winequality-white.csv', sep=";")
 wine_all<-rbind(wine_red,wine_white)
 wine_all=cbind(c(rep(1,dim(wine_red)[1]),rep(0,dim(wine_white)[1])),wine_all)
 colnames(wine_all)[1]<-'Red Wine'
-wine_all
 ```
 
 #### Looking at data
